@@ -1,15 +1,11 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { generateHtml } from './html.ts';
 
 const SEARCH_URL = 'https://store.steampowered.com/search/results/';
 const DETAILS_URL = 'https://store.steampowered.com/api/appdetails';
 const PAGE_SIZE = 50;
-const DELAY_MS = 300;
-// Fetch demos released within this many days; set to 0 to disable the cutoff.
-const RECENCY_DAYS = parseInt(process.env.RECENCY_DAYS ?? '7', 10);
-// Hard cap on total demos enriched (avoids runaway API calls).
-const MAX_DEMOS = parseInt(process.env.MAX_DEMOS ?? '100', 10);
 
 export interface Demo {
   appid: number;
@@ -19,6 +15,12 @@ export interface Demo {
   screenshots: string[];
   releaseDate: string;
   storeUrl: string;
+}
+
+export interface CrawlOptions {
+  recencyDays?: number;
+  maxDemos?: number;
+  delayMs?: number;
 }
 
 interface SearchItem {
@@ -43,7 +45,7 @@ function sleep(ms: number) {
 }
 
 // Steam returns dates like "16 May, 2026" or "May 16, 2026" depending on locale.
-function parseReleaseDate(raw: string): Date | null {
+export function parseReleaseDate(raw: string): Date | null {
   const d = new Date(raw);
   return isNaN(d.getTime()) ? null : d;
 }
@@ -78,32 +80,36 @@ async function fetchAppDetails(appid: number): Promise<AppDetailsData | null> {
   return entry?.success ? entry.data : null;
 }
 
-async function crawl(): Promise<Demo[]> {
-  const cutoff = RECENCY_DAYS > 0
-    ? new Date(Date.now() - RECENCY_DAYS * 86_400_000)
+export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
+  const recencyDays = options.recencyDays ?? parseInt(process.env.RECENCY_DAYS ?? '7', 10);
+  const maxDemos = options.maxDemos ?? parseInt(process.env.MAX_DEMOS ?? '100', 10);
+  const delayMs = options.delayMs ?? 300;
+
+  const cutoff = recencyDays > 0
+    ? new Date(Date.now() - recencyDays * 86_400_000)
     : null;
 
   const demos: Demo[] = [];
   let start = 0;
   let hitCutoff = false;
 
-  console.log(`Crawling Steam Mac demos${cutoff ? ` (past ${RECENCY_DAYS} days)` : ''}…`);
+  console.log(`Crawling Steam Mac demos${cutoff ? ` (past ${recencyDays} days)` : ''}…`);
 
-  while (demos.length < MAX_DEMOS && !hitCutoff) {
+  while (demos.length < maxDemos && !hitCutoff) {
     const page = await fetchSearchPage(start);
 
     if (page.items.length === 0) break;
     console.log(`  page start=${start}  items=${page.items.length}`);
 
     for (const item of page.items) {
-      if (demos.length >= MAX_DEMOS) break;
+      if (demos.length >= maxDemos) break;
 
       // appid is embedded in the logo URL: .../steam/apps/<appid>/...
       const match = item.logo.match(/\/apps\/(\d+)\//);
       if (!match) continue;
       const appid = parseInt(match[1], 10);
 
-      await sleep(DELAY_MS);
+      await sleep(delayMs);
       const details = await fetchAppDetails(appid);
       if (!details) continue;
 
@@ -127,7 +133,6 @@ async function crawl(): Promise<Demo[]> {
     }
 
     start += page.items.length;
-    if (page.items.length === 0) break;
   }
 
   console.log(`Done — ${demos.length} demos collected.`);
@@ -145,7 +150,9 @@ async function main() {
   console.log(`Output written to ${outPath}`);
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -7,14 +7,17 @@
   "scripts": {
     "build": "tsc",
     "crawl": "node --import tsx/esm src/crawler.ts",
-    "dev": "tsx src/crawler.ts"
+    "dev": "tsx src/crawler.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   },
   "devDependencies": {
     "@types/node": "^25.8.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.6"
   }
 }
