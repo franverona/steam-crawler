@@ -16,13 +16,7 @@ on:
         default: '100'
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
+  contents: read
 
 jobs:
   crawl:
@@ -49,21 +43,20 @@ jobs:
           count=$(echo "$output" | grep -oP 'Done — \K\d+')
           echo "demo_count=${count:-0}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload report artifact
+        id: upload
+        uses: actions/upload-artifact@v4
         with:
-          path: dist/
-
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@v4
+          name: steam-demo-report
+          path: dist/index.html
+          retention-days: 7
 
       - name: Notify Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           DEMO_COUNT: ${{ steps.crawl.outputs.demo_count }}
           RECENCY_DAYS: ${{ github.event.inputs.recency_days || '7' }}
-          PAGE_URL: ${{ steps.deploy.outputs.page_url }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
@@ -86,8 +79,8 @@ jobs:
                     {
                       \"type\": \"button\",
                       \"style\": \"primary\",
-                      \"text\": { \"type\": \"plain_text\", \"text\": \"View report\" },
-                      \"url\": \"${PAGE_URL}\"
+                      \"text\": { \"type\": \"plain_text\", \"text\": \"Download report\" },
+                      \"url\": \"${ARTIFACT_URL}\"
                     }
                   ]
                 }
