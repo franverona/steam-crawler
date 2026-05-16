@@ -1,0 +1,88 @@
+name: Weekly Steam Demo Crawl
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      recency_days:
+        description: 'Demos released within N days (0 = no cutoff)'
+        required: false
+        default: '7'
+      max_demos:
+        description: 'Maximum number of demos to fetch'
+        required: false
+        default: '100'
+
+permissions:
+  contents: write
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run crawler
+        id: crawl
+        env:
+          RECENCY_DAYS: ${{ github.event.inputs.recency_days || '7' }}
+          MAX_DEMOS: ${{ github.event.inputs.max_demos || '100' }}
+        run: |
+          output=$(npm run crawl 2>&1)
+          echo "$output"
+          count=$(echo "$output" | grep -oP 'Done — \K\d+')
+          echo "demo_count=${count:-0}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push output
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add dist/
+          git diff --staged --quiet && echo "No changes to commit." && exit 0
+          git commit -m "chore: Steam demo update $(date -u '+%Y-%m-%d')"
+          git push
+
+      - name: Notify Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          DEMO_COUNT: ${{ steps.crawl.outputs.demo_count }}
+          RECENCY_DAYS: ${{ github.event.inputs.recency_days || '7' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"blocks\": [
+                {
+                  \"type\": \"header\",
+                  \"text\": { \"type\": \"plain_text\", \"text\": \"🎮 Steam Mac Demo Report Ready\" }
+                },
+                {
+                  \"type\": \"section\",
+                  \"fields\": [
+                    { \"type\": \"mrkdwn\", \"text\": \"*Demos found*\n${DEMO_COUNT}\" },
+                    { \"type\": \"mrkdwn\", \"text\": \"*Period*\nLast ${RECENCY_DAYS} days\" }
+                  ]
+                },
+                {
+                  \"type\": \"actions\",
+                  \"elements\": [
+                    {
+                      \"type\": \"button\",
+                      \"text\": { \"type\": \"plain_text\", \"text\": \"View workflow run\" },
+                      \"url\": \"${RUN_URL}\"
+                    }
+                  ]
+                }
+              ]
+            }"

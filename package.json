@@ -1,0 +1,20 @@
+{
+  "name": "steam-weekly-demos",
+  "version": "1.0.0",
+  "description": "Weekly crawler for Steam Mac demos",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "crawl": "node --import tsx/esm src/crawler.ts",
+    "dev": "tsx src/crawler.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
