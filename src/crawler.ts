@@ -63,8 +63,24 @@ function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms));
 }
 
-// Steam returns dates like "16 May, 2026" or "May 16, 2026" depending on locale.
+const MONTHS: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+// Handles "16 May, 2026" (day-first) and "May 16, 2026" (month-first).
+// Falls back to new Date() for any other format V8 can parse.
 export function parseReleaseDate(raw: string): Date | null {
+  const parts = raw.trim().match(/^(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})$/)   // "16 May, 2026"
+              ?? raw.trim().match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/); // "May 16, 2026"
+  if (parts) {
+    const [, a, b, c] = parts;
+    const [day, monthStr, year] = /^\d/.test(a)
+      ? [parseInt(a, 10), b, parseInt(c, 10)]
+      : [parseInt(b, 10), a, parseInt(c, 10)];
+    const month = MONTHS[monthStr.toLowerCase().slice(0, 3)];
+    if (month !== undefined) return new Date(year, month, day);
+  }
   const d = new Date(raw);
   return isNaN(d.getTime()) ? null : d;
 }
