@@ -16,28 +16,39 @@ function escapeHtml(str: string): string {
 }
 
 function demoCard(demo: Demo): string {
-  const allImages = [demo.headerImage, ...demo.screenshots]
-    .filter(Boolean)
+  const screenshots = demo.screenshots.filter(Boolean);
+  const allImages = [demo.headerImage, ...screenshots].filter(Boolean);
+  const mainImage = screenshots[0] || demo.headerImage;
+
+  const thumbs = allImages
     .map(
-      src =>
-        `<img class="strip-img" src="${escapeHtml(src)}" alt="" loading="lazy">`,
+      (src, i) =>
+        `<img class="thumb${i === (screenshots[0] ? 1 : 0) ? ' active' : ''}" src="${escapeHtml(src)}" alt="" loading="lazy">`,
     )
     .join('');
 
   return `
   <article class="card">
-    <div class="card-meta">
+    <div class="card-header">
       <h2 class="card-title">
         <a href="${escapeHtml(demo.storeUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(demo.name)}</a>
       </h2>
-      <div class="card-right">
-        ${demo.releaseDate ? `<span class="release-date">${escapeHtml(formatDate(demo.releaseDate))}</span>` : ''}
-        <a class="cta" href="${escapeHtml(demo.storeUrl)}" target="_blank" rel="noopener noreferrer">Try demo &rarr;</a>
+      <a class="cta" href="${escapeHtml(demo.storeUrl)}" target="_blank" rel="noopener noreferrer">Try demo &rarr;</a>
+    </div>
+    <div class="card-body">
+      <div class="card-media">
+        <div class="main-viewer">
+          <img class="main-img" src="${escapeHtml(mainImage)}" alt="">
+        </div>
+        <div class="thumb-strip">${thumbs}</div>
+      </div>
+      <div class="card-info">
+        <img class="capsule" src="${escapeHtml(demo.headerImage)}" alt="${escapeHtml(demo.name)}" loading="lazy">
+        <p class="description">${escapeHtml(demo.shortDescription)}</p>
+        ${demo.releaseDate ? `<div class="meta-row"><span class="meta-label">RELEASE DATE:</span> <span class="meta-value">${escapeHtml(formatDate(demo.releaseDate))}</span></div>` : ''}
+        ${demo.tags.length > 0 ? `<div class="tags"><span class="meta-label">Popular tags for this product:</span><div class="tag-list">${demo.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div></div>` : ''}
       </div>
     </div>
-    <div class="image-strip">${allImages}</div>
-    ${demo.tags.length > 0 ? `<div class="tags">${demo.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-    <p class="description">${escapeHtml(demo.shortDescription)}</p>
   </article>`;
 }
 
@@ -62,7 +73,7 @@ export function generateHtml(demos: Demo[]): string {
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0f1923;
+      background: #1b2838;
       color: #c6d4df;
       min-height: 100vh;
       padding: 2.5rem 1.5rem;
@@ -89,129 +100,187 @@ export function generateHtml(demos: Demo[]): string {
     .list {
       display: flex;
       flex-direction: column;
-      gap: 2rem;
+      gap: 2.5rem;
       max-width: 1000px;
       margin: 0 auto;
     }
 
     /* ── Card ── */
     .card {
-      background: #1c2a38;
-      border-radius: 10px;
+      background: #16202d;
+      border-radius: 4px;
       overflow: hidden;
-      border: 1px solid #2a3f5a;
+      border: 1px solid #2a475e;
     }
 
-    /* ── Title row ── */
-    .card-meta {
+    /* ── Card header: title bar ── */
+    .card-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      padding: 0.9rem 1.1rem;
-      flex-wrap: wrap;
+      padding: 0.75rem 1rem;
+      background: #0d1b26;
+      border-bottom: 1px solid #2a475e;
     }
 
     .card-title {
-      font-size: 1.1rem;
-      font-weight: 600;
+      font-size: 1.25rem;
+      font-weight: 400;
       line-height: 1.3;
     }
 
     .card-title a {
-      color: #66c0f4;
+      color: #c6d4df;
       text-decoration: none;
     }
 
-    .card-title a:hover { text-decoration: underline; }
-
-    .card-right {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      flex-shrink: 0;
-    }
-
-    .release-date {
-      font-size: 0.78rem;
-      color: #6b7a87;
-      white-space: nowrap;
-    }
+    .card-title a:hover { color: #fff; }
 
     .cta {
       display: inline-block;
-      padding: 0.35rem 0.9rem;
-      background: #4c6b8a;
+      padding: 0.4rem 1rem;
+      background: #4c7a9e;
       color: #fff;
-      border-radius: 5px;
+      border-radius: 3px;
       font-size: 0.8rem;
       font-weight: 600;
       text-decoration: none;
       white-space: nowrap;
+      flex-shrink: 0;
       transition: background 0.15s;
     }
 
     .cta:hover { background: #66c0f4; color: #0f1923; }
 
-    /* ── Image strip ── */
-    .image-strip {
-      display: flex;
-      gap: 4px;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-      background: #0f1923;
-      padding: 4px;
-      scrollbar-width: thin;
-      scrollbar-color: #2a3f5a transparent;
+    /* ── Two-column body ── */
+    .card-body {
+      display: grid;
+      grid-template-columns: 1fr 300px;
     }
 
-    .image-strip::-webkit-scrollbar { height: 5px; }
-    .image-strip::-webkit-scrollbar-thumb { background: #2a3f5a; border-radius: 3px; }
+    /* ── Left: media column ── */
+    .card-media {
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
 
-    .strip-img {
-      flex-shrink: 0;
-      height: 200px;
-      width: auto;
+    .main-viewer {
+      background: #000;
       aspect-ratio: 16 / 9;
-      object-fit: cover;
-      border-radius: 5px;
-      scroll-snap-align: start;
+    }
+
+    .main-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
       display: block;
     }
 
-    /* first image is the header capsule (460×215 ratio) */
-    .strip-img:first-child {
+    .thumb-strip {
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+      background: #1b2838;
+      padding: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: #2a475e transparent;
+    }
+
+    .thumb-strip::-webkit-scrollbar { height: 5px; }
+    .thumb-strip::-webkit-scrollbar-thumb { background: #2a475e; border-radius: 3px; }
+
+    .thumb {
+      flex-shrink: 0;
+      height: 54px;
+      width: auto;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 2px;
+      cursor: pointer;
+      opacity: 0.6;
+      border: 2px solid transparent;
+      transition: opacity 0.1s, border-color 0.1s;
+    }
+
+    .thumb:first-child {
       aspect-ratio: 460 / 215;
+    }
+
+    .thumb:hover { opacity: 1; }
+
+    .thumb.active {
+      opacity: 1;
+      border-color: #66c0f4;
+    }
+
+    /* ── Right: info panel ── */
+    .card-info {
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: #16202d;
+      border-left: 1px solid #2a475e;
+    }
+
+    .capsule {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 460 / 215;
+      object-fit: cover;
+      border-radius: 3px;
+      display: block;
+    }
+
+    .description {
+      font-size: 0.8rem;
+      line-height: 1.55;
+      color: #acbbc8;
+    }
+
+    .meta-row {
+      font-size: 0.72rem;
+      display: flex;
+      gap: 0.4rem;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+
+    .meta-label {
+      font-size: 0.68rem;
+      color: #6b7a87;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .meta-value {
+      color: #66c0f4;
     }
 
     /* ── Tags ── */
     .tags {
+      margin-top: auto;
+    }
+
+    .tag-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.35rem;
-      padding: 0.5rem 1.1rem;
-      border-top: 1px solid #2a3f5a;
+      gap: 0.3rem;
+      margin-top: 0.4rem;
     }
 
     .tag {
       font-size: 0.68rem;
-      font-weight: 600;
       padding: 0.18rem 0.5rem;
-      border-radius: 3px;
+      border-radius: 2px;
       background: #1e3a5a;
       color: #66c0f4;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    /* ── Description ── */
-    .description {
-      padding: 0.85rem 1.1rem 1rem;
-      font-size: 0.875rem;
-      line-height: 1.6;
-      color: #8f98a0;
-      border-top: 1px solid #2a3f5a;
+      border: 1px solid #2a5a8a;
+      white-space: nowrap;
     }
 
     footer {
@@ -223,6 +292,11 @@ export function generateHtml(demos: Demo[]): string {
 
     footer a { color: #4a5a6a; }
     footer a:hover { color: #66c0f4; }
+
+    @media (max-width: 680px) {
+      .card-body { grid-template-columns: 1fr; }
+      .card-info { border-left: none; border-top: 1px solid #2a475e; }
+    }
   </style>
 </head>
 <body>
@@ -238,6 +312,19 @@ ${cards}
   <footer>
     <p>Generated ${escapeHtml(generatedAt)} &mdash; data from <a href="https://store.steampowered.com">Steam</a></p>
   </footer>
+
+  <script>
+    document.querySelectorAll('.thumb-strip').forEach(function(strip) {
+      strip.addEventListener('click', function(e) {
+        var thumb = e.target.closest('.thumb');
+        if (!thumb) return;
+        var card = strip.closest('.card');
+        card.querySelector('.main-img').src = thumb.src;
+        strip.querySelectorAll('.thumb').forEach(function(t) { t.classList.remove('active'); });
+        thumb.classList.add('active');
+      });
+    });
+  </script>
 </body>
 </html>`;
 }
