@@ -145,4 +145,15 @@ describe('generateHtml', () => {
     const html = generateHtml([base]);
     expect(html).toContain('hls.js');
   });
+
+  it('adds onerror hide handler to all CDN images', () => {
+    const html = generateHtml([base]);
+    // Every <img> that loads a CDN URL should have the onerror handler
+    const imgTags = html.match(/<img\b[^>]*>/g) ?? [];
+    const cdnImgs = imgTags.filter(tag => tag.includes('example.com') || tag.includes('steamstatic'));
+    expect(cdnImgs.length).toBeGreaterThan(0);
+    cdnImgs.forEach(tag => {
+      expect(tag).toContain("onerror=\"this.style.display='none'\"");
+    });
+  });
 });
