@@ -411,7 +411,7 @@ ${cards}
           if (img) {
             img.src = thumb.src;
           } else {
-            viewer.innerHTML = '<img class="main-img" src="' + thumb.src + '" alt="" onerror="this.style.display=\'none\'">';
+            viewer.innerHTML = '<img class="main-img" src="' + thumb.src + '" alt="" onerror="this.style.display=\\'none\\'">';
           }
         }
       });
