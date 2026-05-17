@@ -1,7 +1,6 @@
-import { writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generateHtml } from './html.ts';
 
 const SEARCH_URL = 'https://store.steampowered.com/search/results/';
 const DETAILS_URL = 'https://store.steampowered.com/api/appdetails';
@@ -20,10 +19,21 @@ export interface Demo {
   trailerVideoUrl?: string;
 }
 
+export interface StoredDemo extends Demo {
+  addedAt: string;
+}
+
+export interface DemoDatabase {
+  latestBatch: number[];
+  demos: StoredDemo[];
+}
+
 export interface CrawlOptions {
   recencyDays?: number;
   maxDemos?: number;
   delayMs?: number;
+  knownIds?: Set<number>;
+  consecutiveKnownLimit?: number;
 }
 
 interface SearchItem {
@@ -148,6 +158,8 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
   const recencyDays = options.recencyDays ?? parseInt(process.env.RECENCY_DAYS ?? '7', 10);
   const maxDemos = options.maxDemos ?? parseInt(process.env.MAX_DEMOS ?? '100', 10);
   const delayMs = options.delayMs ?? 300;
+  const knownIds = options.knownIds ?? new Set<number>();
+  const consecutiveKnownLimit = options.consecutiveKnownLimit ?? 5;
 
   const cutoff = recencyDays > 0
     ? new Date(Date.now() - recencyDays * 86_400_000)
@@ -157,6 +169,7 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
   const seen = new Set<number>();
   let start = 0;
   let hitCutoff = false;
+  let consecutiveKnown = 0;
 
   console.log(`Crawling Steam Mac demos${cutoff ? ` (past ${recencyDays} days)` : ''}…`);
 
@@ -175,6 +188,16 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
       const appid = parseInt(match[1], 10);
       if (seen.has(appid)) continue;
       seen.add(appid);
+
+      if (knownIds.has(appid)) {
+        consecutiveKnown++;
+        if (consecutiveKnown >= consecutiveKnownLimit) {
+          hitCutoff = true;
+          break;
+        }
+        continue;
+      }
+      consecutiveKnown = 0;
 
       await sleep(delayMs);
       const [details, tags] = await Promise.all([
@@ -216,19 +239,36 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
     start += page.items.length;
   }
 
-  console.log(`Done — ${demos.length} demos collected.`);
+  console.log(`Done — ${demos.length} new demos found.`);
   return demos;
 }
 
 async function main() {
-  const demos = await crawl();
-  const html = generateHtml(demos);
+  const dbPath = join('docs', 'demos.json');
 
-  const outDir = 'dist';
-  await mkdir(outDir, { recursive: true });
-  const outPath = join(outDir, 'index.html');
-  await writeFile(outPath, html, 'utf8');
-  console.log(`Output written to ${outPath}`);
+  let db: DemoDatabase = { latestBatch: [], demos: [] };
+  try {
+    const raw = await readFile(dbPath, 'utf8');
+    db = JSON.parse(raw) as DemoDatabase;
+  } catch {
+    // First run — start with empty database
+  }
+
+  const knownIds = new Set(db.demos.map(d => d.appid));
+  const newDemos = await crawl({ knownIds });
+
+  const addedAt = new Date().toISOString().slice(0, 10);
+  const newStoredDemos: StoredDemo[] = newDemos.map(d => ({ ...d, addedAt }));
+
+  db = {
+    latestBatch: newStoredDemos.map(d => d.appid),
+    demos: [...newStoredDemos, ...db.demos],
+  };
+
+  await mkdir('docs', { recursive: true });
+  await writeFile(dbPath, JSON.stringify(db, null, 2), 'utf8');
+
+  console.log(`Done — ${newDemos.length} new demos added. ${db.demos.length} total in database.`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

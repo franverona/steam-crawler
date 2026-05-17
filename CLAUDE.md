@@ -20,35 +20,43 @@ Key environment variables (all optional):
 
 Example: `RECENCY_DAYS=30 MAX_DEMOS=200 npm run dev`
 
-Output is written to `dist/index.html`.
+Output is written to `docs/demos.json`.
 
 ## Architecture
 
-Two source files, no runtime dependencies — only the Node 24+ built-in `fetch`.
+One source file, no runtime dependencies — only the Node 24+ built-in `fetch`.
 
-**`src/crawler.ts`** — entry point. Paginates the Steam Store search API (`/search/results/`) filtering by `filter=demos&os=mac&sort_by=Released_DESC`, then enriches each result by calling `/api/appdetails` per app. The `appid` is not returned by the search API directly; it is parsed from the `logo` image URL (`/steam/apps/<appid>/`). Applies two early-exit guards: `RECENCY_DAYS` (stops when a release date is older than the cutoff) and `MAX_DEMOS` (hard cap). Tags are scraped from the store page HTML (not the API) via a separate fetch that sets a cookie to bypass age gates. A 300ms delay (`delayMs` in `CrawlOptions`) is inserted between per-app fetches to avoid rate limiting. Writes `dist/index.html` by calling `generateHtml`.
+**`src/crawler.ts`** — entry point. Paginates the Steam Store search API (`/search/results/`) filtering by `filter=demos&os=mac&sort_by=Released_DESC`, then enriches each result by calling `/api/appdetails` per app. The `appid` is not returned by the search API directly; it is parsed from the `logo` image URL (`/steam/apps/<appid>/`). Applies three early-exit guards: `RECENCY_DAYS` (stops when a release date is older than the cutoff), `MAX_DEMOS` (hard cap), and `consecutiveKnownLimit` (stops after N consecutive demos already in the database, default 5). Tags are scraped from the store page HTML (not the API) via a separate fetch that sets a cookie to bypass age gates. A 300ms delay (`delayMs` in `CrawlOptions`) is inserted between per-app fetches to avoid rate limiting. Reads `docs/demos.json` on startup to build the known-ids set, then merges new demos back into it after crawling.
 
-**`src/html.ts`** — pure function `generateHtml(demos: Demo[])`. Produces a self-contained HTML file (inline CSS + inline JS). Layout: single-column list of cards, each with a main viewer and a horizontally-scrollable thumbnail strip (header capsule + all screenshots). Trailers are played via `hls.js` loaded from CDN. Includes a "Try demo →" CTA.
+**`docs/index.html`** — static template committed to the repo. Fetches `./demos.json` at runtime, renders demo cards with inline JS, and provides a Latest/All toggle. Demos in `latestBatch` are badged as "New". Requires being served over HTTP (GitHub Pages) — does not work as a `file://` URL.
 
-**`Demo` interface** (defined in `crawler.ts`, imported by `html.ts`):
+**`docs/demos.json`** — persistent demo database committed to the repo and updated on every workflow run.
+
+**`Demo` interface** (defined in `crawler.ts`):
 ```ts
 { appid, name, shortDescription, headerImage, screenshots, releaseDate, storeUrl, tags, trailerThumbnail?, trailerVideoUrl? }
 ```
+
+**`StoredDemo` interface** extends `Demo` with `addedAt: string` (ISO date, set when first inserted).
+
+**`DemoDatabase` shape** (the `docs/demos.json` structure):
+```ts
+{ latestBatch: number[], demos: StoredDemo[] }
+```
+`latestBatch` contains the appids added in the most recent run and is replaced on every run.
 
 ## GitHub Actions
 
 `.github/workflows/crawl.yml` runs every Monday at 09:00 UTC and on `workflow_dispatch`. It:
 1. Runs `npm test`
-2. Runs the crawler and captures the demo count from stdout
-3. Uploads `dist/index.html` as a GitHub Actions artifact (`steam-demo-report`, retained 7 days)
+2. Runs the crawler; new demos are merged into `docs/demos.json`
+3. Commits and pushes `docs/demos.json` to `main` (`[skip ci]` prevents re-triggering)
 4. Posts a Slack failure notification if any step fails
-5. Posts a Slack success notification with demo count, recency period, and a download link to the artifact
-
-`dist/index.html` is **not committed** — it is only available as a workflow artifact.
+5. Posts a Slack success notification with new demo count, total in database, and a link to the GitHub Pages report
 
 The `RECENCY_DAYS` and `MAX_DEMOS` inputs are exposed as `workflow_dispatch` parameters.
 
 # Notes
 
 - Always run tests to check if changes are correct.
-- If you need to generate the `dist/index.html` file, run the project with `MAX_DEMOS=5` unless the opposite is being said.
+- If you need to run the crawler locally, use `MAX_DEMOS=5` unless told otherwise.

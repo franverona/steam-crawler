@@ -260,4 +260,53 @@ describe('crawl', () => {
     expect(demos[0].trailerThumbnail).toBeUndefined();
     expect(demos[0].trailerVideoUrl).toBeUndefined();
   });
+
+  // ── knownIds ──────────────────────────────────────────────────────────────
+
+  it('skips demos whose appid is in knownIds', async () => {
+    vi.stubGlobal('fetch', mockFetch([{ name: 'Known', appid: 111 }, { name: 'New', appid: 222 }]));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0, knownIds: new Set([111]) });
+    expect(demos).toHaveLength(1);
+    expect(demos[0].appid).toBe(222);
+  });
+
+  it('stops after consecutiveKnownLimit consecutive known demos', async () => {
+    // Items: new(1), known(2), known(3), known(4) — limit=3, should stop before fetching any more
+    const items = [
+      { name: 'New', appid: 1 },
+      { name: 'Known A', appid: 2 },
+      { name: 'Known B', appid: 3 },
+      { name: 'Known C', appid: 4 },
+      { name: 'Also New', appid: 5 }, // should not be reached
+    ];
+    vi.stubGlobal('fetch', mockFetch(items));
+    const demos = await crawl({
+      recencyDays: 0,
+      delayMs: 0,
+      knownIds: new Set([2, 3, 4, 5]),
+      consecutiveKnownLimit: 3,
+    });
+    expect(demos).toHaveLength(1);
+    expect(demos[0].appid).toBe(1);
+  });
+
+  it('resets consecutive known counter when a new demo is found', async () => {
+    // known, known, new, known, known — limit=3, should not stop
+    const items = [
+      { name: 'Known A', appid: 1 },
+      { name: 'Known B', appid: 2 },
+      { name: 'New', appid: 3 },
+      { name: 'Known C', appid: 4 },
+      { name: 'Known D', appid: 5 },
+    ];
+    vi.stubGlobal('fetch', mockFetch(items));
+    const demos = await crawl({
+      recencyDays: 0,
+      delayMs: 0,
+      knownIds: new Set([1, 2, 4, 5]),
+      consecutiveKnownLimit: 3,
+    });
+    expect(demos).toHaveLength(1);
+    expect(demos[0].appid).toBe(3);
+  });
 });

@@ -1,6 +1,6 @@
 # Steam Weekly Demos
 
-Crawls the Steam Store for Mac demos released in the past week and generates a browsable HTML report.
+Crawls the Steam Store for Mac demos released in the past week and maintains a growing database served as a live GitHub Pages site.
 
 ## Usage
 
@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Output is written to `dist/index.html`. Open it in any browser.
+New demos are written to `docs/demos.json`. The report is served from `docs/index.html` via GitHub Pages.
 
 ### Options
 
@@ -24,12 +24,14 @@ RECENCY_DAYS=30 MAX_DEMOS=200 npm run dev
 
 ## Automation
 
-A GitHub Actions workflow runs every Monday at 09:00 UTC, commits the updated `dist/index.html`, and posts a Slack notification.
+A GitHub Actions workflow runs every Monday at 09:00 UTC, appends new demos to `docs/demos.json`, commits it, and posts a Slack notification with a link to the GitHub Pages report.
 
 **Required secret:** `SLACK_WEBHOOK_URL` — an [Incoming Webhook](https://api.slack.com/messaging/webhooks) URL from your Slack app.
 
 ```bash
 gh secret set SLACK_WEBHOOK_URL --body "https://hooks.slack.com/services/..."
 ```
+
+**GitHub Pages setup (one-time):** make the repo public, then enable Pages in Settings → Pages → source: `main` branch, `/docs` folder.
 
 You can also trigger a run manually from the Actions tab with custom `recency_days` and `max_demos` inputs.
