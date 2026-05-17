@@ -43,8 +43,8 @@ jobs:
         run: |
           output=$(npm run crawl 2>&1)
           echo "$output"
-          new_count=$(echo "$output" | grep -oP 'Done — \K\d+(?= new)')
-          total=$(echo "$output" | grep -oP '\d+(?= total)')
+          new_count=$(echo "$output" | grep -oP '\d+(?= new demos added)')
+          total=$(echo "$output" | grep -oP '\d+(?= total in database)')
           echo "new_count=${new_count:-0}" >> "$GITHUB_OUTPUT"
           echo "total=${total:-0}" >> "$GITHUB_OUTPUT"
 
