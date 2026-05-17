@@ -21,20 +21,20 @@ function demoCard(demo: Demo): string {
   const hasTrailer = !!(demo.trailerThumbnail && demo.trailerVideoUrl);
 
   const trailerThumb = hasTrailer
-    ? `<div class="thumb trailer-thumb active" data-video="${escapeHtml(demo.trailerVideoUrl!)}" title="Watch trailer"><img src="${escapeHtml(demo.trailerThumbnail!)}" alt="Trailer" loading="lazy"><span class="play-icon">&#9654;</span></div>`
+    ? `<div class="thumb trailer-thumb active" data-video="${escapeHtml(demo.trailerVideoUrl!)}" title="Watch trailer"><img src="${escapeHtml(demo.trailerThumbnail!)}" alt="Trailer" loading="lazy" onerror="this.style.display='none'"><span class="play-icon">&#9654;</span></div>`
     : '';
 
   // If a trailer is active, no screenshot thumb starts active
   const thumbs = allImages
     .map((src, i) => {
       const active = !hasTrailer && i === (screenshots[0] ? 1 : 0);
-      return `<img class="thumb${active ? ' active' : ''}" src="${escapeHtml(src)}" alt="" loading="lazy">`;
+      return `<img class="thumb${active ? ' active' : ''}" src="${escapeHtml(src)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
     })
     .join('');
 
   const mainViewer = hasTrailer
     ? `<video class="main-video" data-hls="${escapeHtml(demo.trailerVideoUrl!)}" controls></video>`
-    : `<img class="main-img" src="${escapeHtml(screenshots[0] || demo.headerImage)}" alt="">`;
+    : `<img class="main-img" src="${escapeHtml(screenshots[0] || demo.headerImage)}" alt="" onerror="this.style.display='none'">`;
 
   return `
   <article class="card">
@@ -52,7 +52,7 @@ function demoCard(demo: Demo): string {
         <div class="thumb-strip">${trailerThumb}${thumbs}</div>
       </div>
       <div class="card-info">
-        <img class="capsule" src="${escapeHtml(demo.headerImage)}" alt="${escapeHtml(demo.name)}" loading="lazy">
+        <img class="capsule" src="${escapeHtml(demo.headerImage)}" alt="${escapeHtml(demo.name)}" loading="lazy" onerror="this.style.display='none'">
         <p class="description">${escapeHtml(demo.shortDescription)}</p>
         ${demo.releaseDate ? `<div class="meta-row"><span class="meta-label">RELEASE DATE:</span> <span class="meta-value">${escapeHtml(formatDate(demo.releaseDate))}</span></div>` : ''}
         ${demo.tags.length > 0 ? `<div class="tags"><span class="meta-label">Popular user-defined tags:</span><div class="tag-list">${demo.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div></div>` : ''}
@@ -411,7 +411,7 @@ ${cards}
           if (img) {
             img.src = thumb.src;
           } else {
-            viewer.innerHTML = '<img class="main-img" src="' + thumb.src + '" alt="">';
+            viewer.innerHTML = '<img class="main-img" src="' + thumb.src + '" alt="" onerror="this.style.display=\'none\'">';
           }
         }
       });
