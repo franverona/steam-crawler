@@ -109,6 +109,26 @@ describe('crawl', () => {
     expect(demos).toHaveLength(0);
   });
 
+  it('deduplicates appids that appear on multiple pages', async () => {
+    let searchCalls = 0;
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('/search/results/')) {
+        // Both pages return the same appid to simulate pagination overlap
+        const items = searchCalls++ < 2 ? makeSearchResponse([{ name: 'Dup', appid: 111 }]).items : [];
+        return { ok: true, json: async () => ({ items }) } as unknown as Response;
+      }
+      if (url.includes('store.steampowered.com/app/')) {
+        return { ok: true, text: async () => '' } as unknown as Response;
+      }
+      const match = url.match(/appids=(\d+)/);
+      const appid = match ? parseInt(match[1], 10) : 0;
+      return { ok: true, json: async () => makeDetailsResponse(appid) } as unknown as Response;
+    }));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos).toHaveLength(1);
+    expect(demos[0].appid).toBe(111);
+  });
+
   it('respects maxDemos cap', async () => {
     vi.stubGlobal('fetch', mockFetch([
       { name: 'A', appid: 1 },

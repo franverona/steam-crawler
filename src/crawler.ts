@@ -138,6 +138,7 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
     : null;
 
   const demos: Demo[] = [];
+  const seen = new Set<number>();
   let start = 0;
   let hitCutoff = false;
 
@@ -156,6 +157,8 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
       const match = item.logo.match(/\/apps\/(\d+)\//);
       if (!match) continue;
       const appid = parseInt(match[1], 10);
+      if (seen.has(appid)) continue;
+      seen.add(appid);
 
       await sleep(delayMs);
       const [details, tags] = await Promise.all([
