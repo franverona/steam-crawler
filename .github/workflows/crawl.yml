@@ -58,10 +58,11 @@ jobs:
         if: failure()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
-            -d '{"text": "⚠️ Steam demo crawl failed. Check the Actions run for details."}'
+            -d "{\"text\": \"⚠️ Steam demo crawl failed. <${RUN_URL}|View run>\"}"
 
       - name: Notify Slack
         env:
