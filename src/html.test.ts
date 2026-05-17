@@ -10,6 +10,7 @@ const base: Demo = {
   screenshots: ['https://example.com/ss1.jpg', 'https://example.com/ss2.jpg'],
   releaseDate: '16 May, 2026',
   storeUrl: 'https://store.steampowered.com/app/12345/',
+  tags: ['Action', 'Indie'],
 };
 
 describe('generateHtml', () => {

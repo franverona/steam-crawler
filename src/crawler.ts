@@ -15,6 +15,7 @@ export interface Demo {
   screenshots: string[];
   releaseDate: string;
   storeUrl: string;
+  tags: string[];
 }
 
 export interface CrawlOptions {
@@ -38,6 +39,8 @@ interface AppDetailsData {
   header_image: string;
   release_date: { coming_soon: boolean; date: string };
   screenshots: Array<{ path_thumbnail: string; path_full: string }>;
+  genres?: Array<{ id: string; description: string }>;
+  categories?: Array<{ id: number; description: string }>;
 }
 
 function sleep(ms: number) {
@@ -70,7 +73,7 @@ async function fetchSearchPage(start: number): Promise<SearchResponse> {
 async function fetchAppDetails(appid: number): Promise<AppDetailsData | null> {
   const params = new URLSearchParams({
     appids: String(appid),
-    filters: 'basic,short_description,screenshots',
+    filters: 'basic,short_description,screenshots,genres,categories',
     l: 'english',
   });
   const res = await fetch(`${DETAILS_URL}?${params}`);
@@ -127,6 +130,10 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         screenshots: (details.screenshots ?? []).map(s => s.path_thumbnail),
         releaseDate: details.release_date?.date ?? '',
         storeUrl: `https://store.steampowered.com/app/${appid}/`,
+        tags: [
+          ...(details.genres ?? []).map(g => g.description),
+          ...(details.categories ?? []).map(c => c.description),
+        ].slice(0, 3),
       });
 
       console.log(`    [${demos.length}] ${details.name}`);
