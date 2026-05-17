@@ -56,13 +56,40 @@ beforeEach(() => { vi.stubGlobal('fetch', undefined); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('parseReleaseDate', () => {
-  it('parses a valid Steam date string', () => {
+  it('parses day-first format "16 May, 2026"', () => {
     const d = parseReleaseDate('16 May, 2026');
     expect(d).toBeInstanceOf(Date);
     expect(d!.getFullYear()).toBe(2026);
+    expect(d!.getMonth()).toBe(4); // May = 4
+    expect(d!.getDate()).toBe(16);
   });
 
-  it('returns null for an invalid date', () => {
+  it('parses month-first format "May 16, 2026"', () => {
+    const d = parseReleaseDate('May 16, 2026');
+    expect(d).toBeInstanceOf(Date);
+    expect(d!.getFullYear()).toBe(2026);
+    expect(d!.getMonth()).toBe(4);
+    expect(d!.getDate()).toBe(16);
+  });
+
+  it('parses without the trailing comma ("16 May 2026")', () => {
+    const d = parseReleaseDate('16 May 2026');
+    expect(d).toBeInstanceOf(Date);
+    expect(d!.getFullYear()).toBe(2026);
+    expect(d!.getMonth()).toBe(4);
+    expect(d!.getDate()).toBe(16);
+  });
+
+  it('parses all twelve months correctly', () => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    months.forEach((m, i) => {
+      const d = parseReleaseDate(`1 ${m}, 2024`);
+      expect(d).toBeInstanceOf(Date);
+      expect(d!.getMonth()).toBe(i);
+    });
+  });
+
+  it('returns null for an invalid date string', () => {
     expect(parseReleaseDate('not a date')).toBeNull();
     expect(parseReleaseDate('')).toBeNull();
   });
