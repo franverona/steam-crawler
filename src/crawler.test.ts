@@ -15,6 +15,7 @@ function makeDetailsResponse(appid: number, overrides: Record<string, unknown> =
     [appid]: {
       success: true,
       data: {
+        type: 'game',
         name: `Game ${appid}`,
         short_description: `Description for ${appid}`,
         header_image: `https://example.com/${appid}/header.jpg`,
@@ -23,23 +24,31 @@ function makeDetailsResponse(appid: number, overrides: Record<string, unknown> =
           { path_thumbnail: `https://example.com/${appid}/ss1.jpg`, path_full: '' },
           { path_thumbnail: `https://example.com/${appid}/ss2.jpg`, path_full: '' },
         ],
+        movies: [],
         ...overrides,
       },
     },
   };
 }
 
-function mockFetch(searchItems: { name: string; appid: number }[], detailsOverrides: Record<number, Record<string, unknown>> = {}) {
+function mockFetch(
+  searchItems: { name: string; appid: number }[],
+  detailsOverrides: Record<number, Record<string, unknown>> = {},
+) {
   let searchCalls = 0;
   return vi.fn(async (url: string) => {
     if (url.includes('/search/results/')) {
-      // Return items only on the first page; subsequent pages are empty to stop pagination.
       const items = searchCalls++ === 0 ? makeSearchResponse(searchItems).items : [];
-      return { ok: true, json: async () => ({ items }) } as Response;
+      return { ok: true, json: async () => ({ items }) } as unknown as Response;
     }
+    // Store page fetch used by fetchStoreTags — return empty HTML (no tags)
+    if (url.includes('store.steampowered.com/app/')) {
+      return { ok: true, text: async () => '' } as unknown as Response;
+    }
+    // appdetails — used by fetchAppDetails and fetchMovies
     const match = url.match(/appids=(\d+)/);
     const appid = match ? parseInt(match[1], 10) : 0;
-    return { ok: true, json: async () => makeDetailsResponse(appid, detailsOverrides[appid] ?? {}) } as Response;
+    return { ok: true, json: async () => makeDetailsResponse(appid, detailsOverrides[appid] ?? {}) } as unknown as Response;
   });
 }
 
@@ -89,9 +98,12 @@ describe('crawl', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (url.includes('/search/results/')) {
         const items = searchCalls++ === 0 ? makeSearchResponse([{ name: 'Bad', appid: 111 }]).items : [];
-        return { ok: true, json: async () => ({ items }) } as Response;
+        return { ok: true, json: async () => ({ items }) } as unknown as Response;
       }
-      return { ok: true, json: async () => ({ 111: { success: false } }) } as Response;
+      if (url.includes('store.steampowered.com/app/')) {
+        return { ok: true, text: async () => '' } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({ 111: { success: false } }) } as unknown as Response;
     }));
     const demos = await crawl({ recencyDays: 0, delayMs: 0 });
     expect(demos).toHaveLength(0);
@@ -121,13 +133,84 @@ describe('crawl', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
       json: async () => ({ items: [] }),
-    } as Response)));
+    } as unknown as Response)));
     const demos = await crawl({ recencyDays: 0, delayMs: 0 });
     expect(demos).toHaveLength(0);
   });
 
   it('throws when the search API returns a non-OK response', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429 } as Response)));
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429 } as unknown as Response)));
     await expect(crawl({ recencyDays: 0, delayMs: 0 })).rejects.toThrow('429');
+  });
+
+  it('skips items where coming_soon is true', async () => {
+    vi.stubGlobal('fetch', mockFetch(
+      [{ name: 'Soon', appid: 111 }],
+      { 111: { release_date: { coming_soon: true, date: '' } } },
+    ));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos).toHaveLength(0);
+  });
+
+  it('skips items where type is dlc', async () => {
+    vi.stubGlobal('fetch', mockFetch(
+      [{ name: 'DLC', appid: 111 }],
+      { 111: { type: 'dlc' } },
+    ));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos).toHaveLength(0);
+  });
+
+  it('skips items where type is music', async () => {
+    vi.stubGlobal('fetch', mockFetch(
+      [{ name: 'Soundtrack', appid: 111 }],
+      { 111: { type: 'music' } },
+    ));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos).toHaveLength(0);
+  });
+
+  it('sets trailerThumbnail and trailerVideoUrl from the first movie', async () => {
+    const movie = {
+      id: 123,
+      name: 'Trailer',
+      thumbnail: 'https://example.com/thumb.jpg',
+      hls_h264: 'https://example.com/stream.m3u8',
+      highlight: true,
+    };
+    vi.stubGlobal('fetch', mockFetch(
+      [{ name: 'Game A', appid: 111 }],
+      { 111: { movies: [movie] } },
+    ));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos[0].trailerThumbnail).toBe('https://example.com/thumb.jpg');
+    expect(demos[0].trailerVideoUrl).toBe('https://example.com/stream.m3u8');
+  });
+
+  it('fetches full game movies when the demo has none', async () => {
+    const fullGameMovie = {
+      id: 456,
+      name: 'Full Game Trailer',
+      thumbnail: 'https://example.com/fullgame-thumb.jpg',
+      hls_h264: 'https://example.com/fullgame-stream.m3u8',
+      highlight: true,
+    };
+    vi.stubGlobal('fetch', mockFetch(
+      [{ name: 'Demo', appid: 111 }],
+      {
+        111: { movies: [], fullgame: { appid: '99999', name: 'Full Game' } },
+        99999: { movies: [fullGameMovie] },
+      },
+    ));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos[0].trailerThumbnail).toBe('https://example.com/fullgame-thumb.jpg');
+    expect(demos[0].trailerVideoUrl).toBe('https://example.com/fullgame-stream.m3u8');
+  });
+
+  it('leaves trailerThumbnail undefined when no movies exist anywhere', async () => {
+    vi.stubGlobal('fetch', mockFetch([{ name: 'Game A', appid: 111 }]));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos[0].trailerThumbnail).toBeUndefined();
+    expect(demos[0].trailerVideoUrl).toBeUndefined();
   });
 });

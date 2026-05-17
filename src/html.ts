@@ -18,14 +18,23 @@ function escapeHtml(str: string): string {
 function demoCard(demo: Demo): string {
   const screenshots = demo.screenshots.filter(Boolean);
   const allImages = [demo.headerImage, ...screenshots].filter(Boolean);
-  const mainImage = screenshots[0] || demo.headerImage;
+  const hasTrailer = !!(demo.trailerThumbnail && demo.trailerVideoUrl);
 
+  const trailerThumb = hasTrailer
+    ? `<div class="thumb trailer-thumb active" data-video="${escapeHtml(demo.trailerVideoUrl!)}" title="Watch trailer"><img src="${escapeHtml(demo.trailerThumbnail!)}" alt="Trailer" loading="lazy"><span class="play-icon">&#9654;</span></div>`
+    : '';
+
+  // If a trailer is active, no screenshot thumb starts active
   const thumbs = allImages
-    .map(
-      (src, i) =>
-        `<img class="thumb${i === (screenshots[0] ? 1 : 0) ? ' active' : ''}" src="${escapeHtml(src)}" alt="" loading="lazy">`,
-    )
+    .map((src, i) => {
+      const active = !hasTrailer && i === (screenshots[0] ? 1 : 0);
+      return `<img class="thumb${active ? ' active' : ''}" src="${escapeHtml(src)}" alt="" loading="lazy">`;
+    })
     .join('');
+
+  const mainViewer = hasTrailer
+    ? `<video class="main-video" data-hls="${escapeHtml(demo.trailerVideoUrl!)}" controls></video>`
+    : `<img class="main-img" src="${escapeHtml(screenshots[0] || demo.headerImage)}" alt="">`;
 
   return `
   <article class="card">
@@ -38,9 +47,9 @@ function demoCard(demo: Demo): string {
     <div class="card-body">
       <div class="card-media">
         <div class="main-viewer">
-          <img class="main-img" src="${escapeHtml(mainImage)}" alt="">
+          ${mainViewer}
         </div>
-        <div class="thumb-strip">${thumbs}</div>
+        <div class="thumb-strip">${trailerThumb}${thumbs}</div>
       </div>
       <div class="card-info">
         <img class="capsule" src="${escapeHtml(demo.headerImage)}" alt="${escapeHtml(demo.name)}" loading="lazy">
@@ -216,6 +225,40 @@ export function generateHtml(demos: Demo[]): string {
       border-color: #66c0f4;
     }
 
+    .trailer-thumb {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .trailer-thumb img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+    }
+
+    .play-icon {
+      position: relative;
+      z-index: 1;
+      font-size: 1.1rem;
+      color: #fff;
+      text-shadow: 0 0 6px rgba(0,0,0,0.9);
+      pointer-events: none;
+    }
+
+    .main-video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+
     /* ── Right: info panel ── */
     .card-info {
       padding: 1rem;
@@ -313,15 +356,64 @@ ${cards}
     <p>Generated ${escapeHtml(generatedAt)} &mdash; data from <a href="https://store.steampowered.com">Steam</a></p>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
   <script>
+    var hlsInstances = new WeakMap();
+
+    function attachHls(video, src) {
+      if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+        var hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hlsInstances.set(video, hls);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+      }
+    }
+
+    function teardownVideo(viewer) {
+      var video = viewer.querySelector('.main-video');
+      if (!video) return;
+      video.pause();
+      var hls = hlsInstances.get(video);
+      if (hls) { hls.destroy(); hlsInstances.delete(video); }
+    }
+
+    // Initialize paused trailers already rendered in the main viewer
+    document.querySelectorAll('.main-video[data-hls]').forEach(function(video) {
+      attachHls(video, video.dataset.hls);
+    });
+
     document.querySelectorAll('.thumb-strip').forEach(function(strip) {
       strip.addEventListener('click', function(e) {
         var thumb = e.target.closest('.thumb');
         if (!thumb) return;
         var card = strip.closest('.card');
-        card.querySelector('.main-img').src = thumb.src;
+        var viewer = card.querySelector('.main-viewer');
         strip.querySelectorAll('.thumb').forEach(function(t) { t.classList.remove('active'); });
         thumb.classList.add('active');
+        if (thumb.dataset.video) {
+          var existing = viewer.querySelector('.main-video');
+          if (existing) {
+            existing.play();
+          } else {
+            var video = document.createElement('video');
+            video.className = 'main-video';
+            video.controls = true;
+            viewer.innerHTML = '';
+            viewer.appendChild(video);
+            attachHls(video, thumb.dataset.video);
+            video.play();
+          }
+        } else {
+          teardownVideo(viewer);
+          var img = viewer.querySelector('.main-img');
+          if (img) {
+            img.src = thumb.src;
+          } else {
+            viewer.innerHTML = '<img class="main-img" src="' + thumb.src + '" alt="">';
+          }
+        }
       });
     });
   </script>

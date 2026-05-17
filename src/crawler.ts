@@ -16,6 +16,8 @@ export interface Demo {
   releaseDate: string;
   storeUrl: string;
   tags: string[];
+  trailerThumbnail?: string;
+  trailerVideoUrl?: string;
 }
 
 export interface CrawlOptions {
@@ -33,6 +35,17 @@ interface SearchResponse {
   items: SearchItem[];
 }
 
+interface AppMovie {
+  id: number;
+  name: string;
+  thumbnail: string;
+  // Modern Steam API serves streaming formats only (DASH/HLS), not embeddable without a JS library.
+  hls_h264?: string;
+  dash_h264?: string;
+  dash_av1?: string;
+  highlight: boolean;
+}
+
 interface AppDetailsData {
   type: string; // 'game' | 'dlc' | 'music' | 'demo' | etc.
   name: string;
@@ -42,6 +55,8 @@ interface AppDetailsData {
   screenshots: Array<{ path_thumbnail: string; path_full: string }>;
   genres?: Array<{ id: string; description: string }>;
   categories?: Array<{ id: number; description: string }>;
+  movies?: AppMovie[];
+  fullgame?: { appid: string; name: string };
 }
 
 function sleep(ms: number) {
@@ -91,10 +106,19 @@ async function fetchStoreTags(appid: number): Promise<string[]> {
   return tags;
 }
 
+async function fetchMovies(appid: number): Promise<AppMovie[]> {
+  const params = new URLSearchParams({ appids: String(appid), filters: 'movies', l: 'english' });
+  const res = await fetch(`${DETAILS_URL}?${params}`);
+  if (!res.ok) return [];
+  const json = (await res.json()) as Record<string, { success: boolean; data: { movies?: AppMovie[] } }>;
+  const entry = json[String(appid)];
+  return entry?.success ? (entry.data.movies ?? []) : [];
+}
+
 async function fetchAppDetails(appid: number): Promise<AppDetailsData | null> {
   const params = new URLSearchParams({
     appids: String(appid),
-    filters: 'basic,short_description,screenshots,genres,categories',
+    filters: 'basic,short_description,screenshots,genres,categories,movies,fullgame',
     l: 'english',
   });
   const res = await fetch(`${DETAILS_URL}?${params}`);
@@ -148,6 +172,12 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         break;
       }
 
+      // Demo apps rarely carry their own movies; fall back to the full game's page.
+      let movies = details.movies ?? [];
+      if (movies.length === 0 && details.fullgame?.appid) {
+        movies = await fetchMovies(parseInt(details.fullgame.appid, 10));
+      }
+      const firstMovie = movies[0];
       demos.push({
         appid,
         name: details.name,
@@ -157,6 +187,8 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         releaseDate: details.release_date?.date ?? '',
         storeUrl: `https://store.steampowered.com/app/${appid}/`,
         tags,
+        trailerThumbnail: firstMovie?.thumbnail,
+        trailerVideoUrl: firstMovie?.hls_h264,
       });
 
       console.log(`    [${demos.length}] ${details.name}`);
