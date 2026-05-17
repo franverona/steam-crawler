@@ -46,7 +46,7 @@ function demoCard(demo: Demo): string {
         <img class="capsule" src="${escapeHtml(demo.headerImage)}" alt="${escapeHtml(demo.name)}" loading="lazy">
         <p class="description">${escapeHtml(demo.shortDescription)}</p>
         ${demo.releaseDate ? `<div class="meta-row"><span class="meta-label">RELEASE DATE:</span> <span class="meta-value">${escapeHtml(formatDate(demo.releaseDate))}</span></div>` : ''}
-        ${demo.tags.length > 0 ? `<div class="tags"><span class="meta-label">Popular tags for this product:</span><div class="tag-list">${demo.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div></div>` : ''}
+        ${demo.tags.length > 0 ? `<div class="tags"><span class="meta-label">Popular user-defined tags:</span><div class="tag-list">${demo.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div></div>` : ''}
       </div>
     </div>
   </article>`;

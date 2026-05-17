@@ -70,6 +70,26 @@ async function fetchSearchPage(start: number): Promise<SearchResponse> {
   return res.json() as Promise<SearchResponse>;
 }
 
+async function fetchStoreTags(appid: number): Promise<string[]> {
+  const res = await fetch(`https://store.steampowered.com/app/${appid}/`, {
+    headers: {
+      'Accept-Language': 'en-US,en;q=0.9',
+      // Bypass age gates
+      Cookie: 'birthtime=0; lastagecheckage=1-0-1900; mature_content=1',
+    },
+  });
+  if (!res.ok) return [];
+  const html = await res.text();
+  const tags: string[] = [];
+  const re = /class="app_tag"[^>]*>\s*([^<]+?)\s*<\/a>/g;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const tag = m[1].trim();
+    if (tag && tag !== '+') tags.push(tag);
+  }
+  return tags;
+}
+
 async function fetchAppDetails(appid: number): Promise<AppDetailsData | null> {
   const params = new URLSearchParams({
     appids: String(appid),
@@ -113,7 +133,10 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
       const appid = parseInt(match[1], 10);
 
       await sleep(delayMs);
-      const details = await fetchAppDetails(appid);
+      const [details, tags] = await Promise.all([
+        fetchAppDetails(appid),
+        fetchStoreTags(appid),
+      ]);
       if (!details) continue;
 
       const releaseDate = parseReleaseDate(details.release_date?.date ?? '');
@@ -130,10 +153,7 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         screenshots: (details.screenshots ?? []).map(s => s.path_thumbnail),
         releaseDate: details.release_date?.date ?? '',
         storeUrl: `https://store.steampowered.com/app/${appid}/`,
-        tags: [
-          ...(details.genres ?? []).map(g => g.description),
-          ...(details.categories ?? []).map(c => c.description),
-        ].slice(0, 3),
+        tags,
       });
 
       console.log(`    [${demos.length}] ${details.name}`);
