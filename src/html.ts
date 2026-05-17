@@ -36,6 +36,7 @@ function demoCard(demo: Demo): string {
       </div>
     </div>
     <div class="image-strip">${allImages}</div>
+    ${demo.tags.length > 0 ? `<div class="tags">${demo.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
     <p class="description">${escapeHtml(demo.shortDescription)}</p>
   </article>`;
 }
@@ -182,6 +183,26 @@ export function generateHtml(demos: Demo[]): string {
     /* first image is the header capsule (460×215 ratio) */
     .strip-img:first-child {
       aspect-ratio: 460 / 215;
+    }
+
+    /* ── Tags ── */
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      padding: 0.5rem 1.1rem;
+      border-top: 1px solid #2a3f5a;
+    }
+
+    .tag {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.18rem 0.5rem;
+      border-radius: 3px;
+      background: #1e3a5a;
+      color: #66c0f4;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     /* ── Description ── */
