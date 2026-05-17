@@ -34,6 +34,7 @@ interface SearchResponse {
 }
 
 interface AppDetailsData {
+  type: string; // 'game' | 'dlc' | 'music' | 'demo' | etc.
   name: string;
   short_description: string;
   header_image: string;
@@ -138,6 +139,8 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         fetchStoreTags(appid),
       ]);
       if (!details) continue;
+      if (details.release_date?.coming_soon) continue;
+      if (details.type === 'dlc' || details.type === 'music') continue;
 
       const releaseDate = parseReleaseDate(details.release_date?.date ?? '');
       if (cutoff && releaseDate && releaseDate < cutoff) {
