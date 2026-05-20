@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { crawl, parseReleaseDate, pruneOldDemos, StoredDemo } from './crawler.ts';
+import { crawl, parseReleaseDate, pruneOldDemos, fetchWithRetry, StoredDemo } from './crawler.ts';
 
 function makeSearchResponse(items: { name: string; appid: number }[]) {
   return {
@@ -68,6 +68,58 @@ function makeStoredDemo(appid: number, addedAt: string): StoredDemo {
     addedAt,
   };
 }
+
+describe('fetchWithRetry', () => {
+  it('returns immediately on a successful response', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { calls++; return { ok: true, status: 200 } as Response; }));
+    const res = await fetchWithRetry('https://example.com', undefined, 3, 0);
+    expect(res.ok).toBe(true);
+    expect(calls).toBe(1);
+  });
+
+  it('retries on 429 and returns the successful response', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      return (calls === 1
+        ? { ok: false, status: 429 }
+        : { ok: true, status: 200 }) as Response;
+    }));
+    const res = await fetchWithRetry('https://example.com', undefined, 3, 0);
+    expect(res.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('retries on 5xx and returns the successful response', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      return (calls < 3
+        ? { ok: false, status: 503 }
+        : { ok: true, status: 200 }) as Response;
+    }));
+    const res = await fetchWithRetry('https://example.com', undefined, 3, 0);
+    expect(res.ok).toBe(true);
+    expect(calls).toBe(3);
+  });
+
+  it('returns the failed response after exhausting all attempts', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { calls++; return { ok: false, status: 503 } as Response; }));
+    const res = await fetchWithRetry('https://example.com', undefined, 3, 0);
+    expect(res.ok).toBe(false);
+    expect(calls).toBe(3);
+  });
+
+  it('does not retry on 4xx errors other than 429', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { calls++; return { ok: false, status: 404 } as Response; }));
+    const res = await fetchWithRetry('https://example.com', undefined, 3, 0);
+    expect(res.ok).toBe(false);
+    expect(calls).toBe(1);
+  });
+});
 
 describe('pruneOldDemos', () => {
   const now = new Date('2026-05-20T12:00:00Z').getTime();
@@ -233,8 +285,8 @@ describe('crawl', () => {
   });
 
   it('throws when the search API returns a non-OK response', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429 } as unknown as Response)));
-    await expect(crawl({ recencyDays: 0, delayMs: 0 })).rejects.toThrow('429');
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 403 } as unknown as Response)));
+    await expect(crawl({ recencyDays: 0, delayMs: 0 })).rejects.toThrow('403');
   });
 
   it('skips items where coming_soon is true', async () => {

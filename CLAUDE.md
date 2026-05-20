@@ -27,7 +27,7 @@ Output is written to `docs/demos.json`.
 
 One source file, no runtime dependencies — only the Node 24+ built-in `fetch`.
 
-**`src/crawler.ts`** — entry point. Paginates the Steam Store search API (`/search/results/`) filtering by `filter=demos&os=mac&sort_by=Released_DESC`, then enriches each result by calling `/api/appdetails` per app. The `appid` is not returned by the search API directly; it is parsed from the `logo` image URL (`/steam/apps/<appid>/`). Applies three early-exit guards: `RECENCY_DAYS` (stops when a release date is older than the cutoff), `MAX_DEMOS` (hard cap), and `consecutiveKnownLimit` (stops after N consecutive demos already in the database, default 5). Tags are scraped from the store page HTML (not the API) via a separate fetch that sets a cookie to bypass age gates. A 300ms delay (`delayMs` in `CrawlOptions`) is inserted between per-app fetches to avoid rate limiting. Reads `docs/demos.json` on startup to build the known-ids set, then merges new demos back into it after crawling.
+**`src/crawler.ts`** — entry point. Paginates the Steam Store search API (`/search/results/`) filtering by `filter=demos&os=mac&sort_by=Released_DESC`, then enriches each result by calling `/api/appdetails` per app. The `appid` is not returned by the search API directly; it is parsed from the `logo` image URL (`/steam/apps/<appid>/`). Applies three early-exit guards: `RECENCY_DAYS` (stops when a release date is older than the cutoff), `MAX_DEMOS` (hard cap), and `consecutiveKnownLimit` (stops after N consecutive demos already in the database, default 5). Tags are scraped from the store page HTML (not the API) via a separate fetch that sets a cookie to bypass age gates. A 300ms delay (`delayMs` in `CrawlOptions`) is inserted between per-app fetches to avoid rate limiting. All outbound fetch calls go through `fetchWithRetry` (3 attempts, exponential backoff starting at 1s), which retries on 429 and 5xx only. Reads `docs/demos.json` on startup to build the known-ids set, then merges new demos back into it after crawling.
 
 **`docs/index.html`** — static template committed to the repo. Fetches `./demos.json` at runtime, renders demo cards with inline JS, and provides a Latest/All toggle. Demos in `latestBatch` are badged as "New". Requires being served over HTTP (GitHub Pages) — does not work as a `file://` URL.
 
@@ -37,6 +37,7 @@ One source file, no runtime dependencies — only the Node 24+ built-in `fetch`.
 ```ts
 { appid, name, shortDescription, headerImage, screenshots, releaseDate, storeUrl, tags, trailerThumbnail?, trailerVideoUrl? }
 ```
+`releaseDate` is stored as `YYYY-MM-DD`. `trailerVideoUrl` prefers `hls_h264`; falls back to `dash_h264` then `dash_av1`.
 
 **`StoredDemo` interface** extends `Demo` with `addedAt: string` (ISO date, set when first inserted).
 
