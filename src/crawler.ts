@@ -73,6 +73,23 @@ function sleep(ms: number) {
   return new Promise<void>(resolve => setTimeout(resolve, ms));
 }
 
+export async function fetchWithRetry(
+  url: string,
+  init?: RequestInit,
+  maxAttempts = 3,
+  backoffMs = 1000,
+): Promise<Response> {
+  let res!: Response;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    res = await fetch(url, init);
+    if (res.ok) return res;
+    const shouldRetry = res.status === 429 || res.status >= 500;
+    if (!shouldRetry || attempt === maxAttempts - 1) return res;
+    await sleep(backoffMs * 2 ** attempt);
+  }
+  return res;
+}
+
 const MONTHS: Record<string, number> = {
   jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
   jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
@@ -105,7 +122,7 @@ async function fetchSearchPage(start: number): Promise<SearchResponse> {
     os: 'mac',
     json: '1',
   });
-  const res = await fetch(`${SEARCH_URL}?${params}`, {
+  const res = await fetchWithRetry(`${SEARCH_URL}?${params}`, {
     headers: { 'Accept-Language': 'en-US,en;q=0.9' },
   });
   if (!res.ok) throw new Error(`Search API returned ${res.status}`);
@@ -113,7 +130,7 @@ async function fetchSearchPage(start: number): Promise<SearchResponse> {
 }
 
 async function fetchStoreTags(appid: number): Promise<string[]> {
-  const res = await fetch(`https://store.steampowered.com/app/${appid}/`, {
+  const res = await fetchWithRetry(`https://store.steampowered.com/app/${appid}/`, {
     headers: {
       'Accept-Language': 'en-US,en;q=0.9',
       // Bypass age gates
@@ -134,7 +151,7 @@ async function fetchStoreTags(appid: number): Promise<string[]> {
 
 async function fetchMovies(appid: number): Promise<AppMovie[]> {
   const params = new URLSearchParams({ appids: String(appid), filters: 'movies', l: 'english' });
-  const res = await fetch(`${DETAILS_URL}?${params}`);
+  const res = await fetchWithRetry(`${DETAILS_URL}?${params}`);
   if (!res.ok) return [];
   const json = (await res.json()) as Record<string, { success: boolean; data: { movies?: AppMovie[] } }>;
   const entry = json[String(appid)];
@@ -147,7 +164,7 @@ async function fetchAppDetails(appid: number): Promise<AppDetailsData | null> {
     filters: 'basic,short_description,screenshots,genres,categories,movies,fullgame',
     l: 'english',
   });
-  const res = await fetch(`${DETAILS_URL}?${params}`);
+  const res = await fetchWithRetry(`${DETAILS_URL}?${params}`);
   if (!res.ok) return null;
   const json = (await res.json()) as Record<string, { success: boolean; data: AppDetailsData }>;
   const entry = json[String(appid)];
