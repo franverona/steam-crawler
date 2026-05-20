@@ -17,6 +17,7 @@ Key environment variables (all optional):
 |---|---|---|
 | `RECENCY_DAYS` | `7` | Only include demos released within N days. Set to `0` to disable. |
 | `MAX_DEMOS` | `100` | Hard cap on enriched demos to avoid runaway API calls. |
+| `MAX_AGE_DAYS` | `180` | Prune demos from the database older than N days. Set to `0` to keep all. |
 
 Example: `RECENCY_DAYS=30 MAX_DEMOS=200 npm run dev`
 
@@ -54,7 +55,7 @@ One source file, no runtime dependencies — only the Node 24+ built-in `fetch`.
 4. Posts a Slack failure notification if any step fails
 5. Posts a Slack success notification with new demo count, total in database, and a link to the GitHub Pages report
 
-The `RECENCY_DAYS` and `MAX_DEMOS` inputs are exposed as `workflow_dispatch` parameters.
+The `RECENCY_DAYS`, `MAX_DEMOS`, and `MAX_AGE_DAYS` inputs are exposed as `workflow_dispatch` parameters.
 
 # Notes
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { crawl, parseReleaseDate } from './crawler.ts';
+import { crawl, parseReleaseDate, pruneOldDemos, StoredDemo } from './crawler.ts';
 
 function makeSearchResponse(items: { name: string; appid: number }[]) {
   return {
@@ -54,6 +54,47 @@ function mockFetch(
 
 beforeEach(() => { vi.stubGlobal('fetch', undefined); });
 afterEach(() => { vi.unstubAllGlobals(); });
+
+function makeStoredDemo(appid: number, addedAt: string): StoredDemo {
+  return {
+    appid,
+    name: `Game ${appid}`,
+    shortDescription: '',
+    headerImage: '',
+    screenshots: [],
+    releaseDate: '',
+    storeUrl: '',
+    tags: [],
+    addedAt,
+  };
+}
+
+describe('pruneOldDemos', () => {
+  const now = new Date('2026-05-20T12:00:00Z').getTime();
+
+  it('keeps demos within the age window', () => {
+    const demos = [makeStoredDemo(1, '2026-04-01'), makeStoredDemo(2, '2026-05-19')];
+    expect(pruneOldDemos(demos, 180, now)).toHaveLength(2);
+  });
+
+  it('removes demos older than maxAgeDays', () => {
+    const old = makeStoredDemo(1, '2025-10-01'); // ~231 days before 2026-05-20
+    const recent = makeStoredDemo(2, '2026-04-01');
+    const result = pruneOldDemos([old, recent], 180, now);
+    expect(result).toHaveLength(1);
+    expect(result[0].appid).toBe(2);
+  });
+
+  it('keeps all demos when maxAgeDays is 0', () => {
+    const demos = [makeStoredDemo(1, '2020-01-01'), makeStoredDemo(2, '2026-05-01')];
+    expect(pruneOldDemos(demos, 0, now)).toHaveLength(2);
+  });
+
+  it('returns empty array when all demos are too old', () => {
+    const demos = [makeStoredDemo(1, '2020-01-01'), makeStoredDemo(2, '2021-06-15')];
+    expect(pruneOldDemos(demos, 180, now)).toHaveLength(0);
+  });
+});
 
 describe('parseReleaseDate', () => {
   it('parses day-first format "16 May, 2026"', () => {
