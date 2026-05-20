@@ -197,8 +197,6 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         }
         continue;
       }
-      consecutiveKnown = 0;
-
       await sleep(delayMs);
       const [details, tags] = await Promise.all([
         fetchAppDetails(appid),
@@ -234,6 +232,7 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         trailerThumbnail: firstMovie?.thumbnail,
         trailerVideoUrl: firstMovie?.hls_h264,
       });
+      consecutiveKnown = 0;
 
       console.log(`    [${demos.length}] ${details.name}`);
     }

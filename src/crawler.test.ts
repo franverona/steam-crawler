@@ -315,4 +315,28 @@ describe('crawl', () => {
     expect(demos).toHaveLength(1);
     expect(demos[0].appid).toBe(3);
   });
+
+  it('does not reset consecutive known counter for filtered-out items (DLC, coming_soon)', async () => {
+    // known, known, DLC, known, known, known — limit=3, DLC must not reset the streak
+    const items = [
+      { name: 'Known A', appid: 1 },
+      { name: 'Known B', appid: 2 },
+      { name: 'DLC',     appid: 3 },
+      { name: 'Known C', appid: 4 },
+      { name: 'Known D', appid: 5 },
+      { name: 'Known E', appid: 6 },
+      { name: 'Should not be reached', appid: 7 },
+    ];
+    vi.stubGlobal('fetch', mockFetch(
+      items,
+      { 3: { type: 'dlc' } },
+    ));
+    const demos = await crawl({
+      recencyDays: 0,
+      delayMs: 0,
+      knownIds: new Set([1, 2, 4, 5, 6]),
+      consecutiveKnownLimit: 3,
+    });
+    expect(demos).toHaveLength(0);
+  });
 });
