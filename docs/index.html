@@ -360,7 +360,7 @@
     function demoCard(demo, isNew) {
       var screenshots = demo.screenshots.filter(Boolean);
       var allImages = [demo.headerImage].concat(screenshots).filter(Boolean);
-      var hasTrailer = !!(demo.trailerThumbnail && demo.trailerVideoUrl);
+      var hasTrailer = !!(demo.trailerThumbnail && demo.trailerVideoUrl && demo.trailerVideoUrl.includes('.m3u8'));
 
       var trailerThumb = hasTrailer
         ? '<div class="thumb trailer-thumb active" data-video="' + escapeHtml(demo.trailerVideoUrl) + '" title="Watch trailer">' +

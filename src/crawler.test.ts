@@ -281,6 +281,38 @@ describe('crawl', () => {
     expect(demos[0].trailerVideoUrl).toBe('https://example.com/stream.m3u8');
   });
 
+  it('falls back to dash_h264 when hls_h264 is absent', async () => {
+    const movie = {
+      id: 123,
+      name: 'Trailer',
+      thumbnail: 'https://example.com/thumb.jpg',
+      dash_h264: 'https://example.com/stream_dash.mpd',
+      highlight: true,
+    };
+    vi.stubGlobal('fetch', mockFetch(
+      [{ name: 'Game A', appid: 111 }],
+      { 111: { movies: [movie] } },
+    ));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos[0].trailerVideoUrl).toBe('https://example.com/stream_dash.mpd');
+  });
+
+  it('falls back to dash_av1 when hls_h264 and dash_h264 are absent', async () => {
+    const movie = {
+      id: 123,
+      name: 'Trailer',
+      thumbnail: 'https://example.com/thumb.jpg',
+      dash_av1: 'https://example.com/stream_av1.mpd',
+      highlight: true,
+    };
+    vi.stubGlobal('fetch', mockFetch(
+      [{ name: 'Game A', appid: 111 }],
+      { 111: { movies: [movie] } },
+    ));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos[0].trailerVideoUrl).toBe('https://example.com/stream_av1.mpd');
+  });
+
   it('fetches full game movies when the demo has none', async () => {
     const fullGameMovie = {
       id: 456,

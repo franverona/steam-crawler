@@ -230,7 +230,7 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         storeUrl: `https://store.steampowered.com/app/${appid}/`,
         tags,
         trailerThumbnail: firstMovie?.thumbnail,
-        trailerVideoUrl: firstMovie?.hls_h264,
+        trailerVideoUrl: firstMovie?.hls_h264 ?? firstMovie?.dash_h264 ?? firstMovie?.dash_av1,
       });
       consecutiveKnown = 0;
 
