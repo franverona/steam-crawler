@@ -14,6 +14,10 @@ on:
         description: 'Maximum number of demos to fetch'
         required: false
         default: '100'
+      max_age_days:
+        description: 'Remove demos added more than N days ago (0 = keep all)'
+        required: false
+        default: '180'
 
 permissions:
   contents: write
@@ -40,6 +44,7 @@ jobs:
         env:
           RECENCY_DAYS: ${{ github.event.inputs.recency_days || '7' }}
           MAX_DEMOS: ${{ github.event.inputs.max_demos || '100' }}
+          MAX_AGE_DAYS: ${{ github.event.inputs.max_age_days || '180' }}
         run: |
           output=$(npm run crawl 2>&1)
           echo "$output"

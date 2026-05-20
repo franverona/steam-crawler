@@ -244,6 +244,12 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
   return demos;
 }
 
+export function pruneOldDemos(demos: StoredDemo[], maxAgeDays: number, now = Date.now()): StoredDemo[] {
+  if (maxAgeDays <= 0) return demos;
+  const cutoff = new Date(now - maxAgeDays * 86_400_000).toISOString().slice(0, 10);
+  return demos.filter(d => d.addedAt >= cutoff);
+}
+
 async function main() {
   const dbPath = join('docs', 'demos.json');
 
@@ -265,6 +271,16 @@ async function main() {
     latestBatch: newStoredDemos.map(d => d.appid),
     demos: [...newStoredDemos, ...db.demos],
   };
+
+  const maxAgeDays = parseInt(process.env.MAX_AGE_DAYS ?? '180', 10);
+  const beforePrune = db.demos.length;
+  db.demos = pruneOldDemos(db.demos, maxAgeDays);
+  const pruned = beforePrune - db.demos.length;
+  if (pruned > 0) {
+    const remaining = new Set(db.demos.map(d => d.appid));
+    db.latestBatch = db.latestBatch.filter(id => remaining.has(id));
+    console.log(`Pruned ${pruned} demos older than ${maxAgeDays} days.`);
+  }
 
   await mkdir('docs', { recursive: true });
   await writeFile(dbPath, JSON.stringify(db, null, 2), 'utf8');
