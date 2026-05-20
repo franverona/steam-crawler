@@ -47,7 +47,7 @@ One source file, no runtime dependencies — only the Node 24+ built-in `fetch`.
 
 ## GitHub Actions
 
-`.github/workflows/crawl.yml` runs every Monday at 09:00 UTC and on `workflow_dispatch`. It:
+`.github/workflows/crawl.yml` runs every Friday at 16:00 UTC and on `workflow_dispatch`. It:
 1. Runs `npm test`
 2. Runs the crawler; new demos are merged into `docs/demos.json`
 3. Commits and pushes `docs/demos.json` to `main` (`[skip ci]` prevents re-triggering)

@@ -2,8 +2,8 @@ name: Weekly Steam Demo Crawl
 
 on:
   schedule:
-    # Every Monday at 09:00 UTC
-    - cron: '0 9 * * 1'
+    # Every Friday at 16:00 UTC
+    - cron: '0 16 * * 5'
   workflow_dispatch:
     inputs:
       recency_days:

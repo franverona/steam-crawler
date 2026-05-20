@@ -24,7 +24,7 @@ RECENCY_DAYS=30 MAX_DEMOS=200 npm run dev
 
 ## Automation
 
-A GitHub Actions workflow runs every Monday at 09:00 UTC, appends new demos to `docs/demos.json`, commits it, and posts a Slack notification with a link to the GitHub Pages report.
+A GitHub Actions workflow runs every Friday at 16:00 UTC, appends new demos to `docs/demos.json`, commits it, and posts a Slack notification with a link to the GitHub Pages report.
 
 **Required secret:** `SLACK_WEBHOOK_URL` — an [Incoming Webhook](https://api.slack.com/messaging/webhooks) URL from your Slack app.
 
