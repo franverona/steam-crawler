@@ -111,6 +111,12 @@ describe('crawl', () => {
     expect(demos[0].storeUrl).toBe('https://store.steampowered.com/app/99999/');
   });
 
+  it('stores releaseDate as an ISO date string (YYYY-MM-DD)', async () => {
+    vi.stubGlobal('fetch', mockFetch([{ name: 'Game A', appid: 111 }]));
+    const demos = await crawl({ recencyDays: 0, delayMs: 0 });
+    expect(demos[0].releaseDate).toBe('2026-05-16'); // '16 May, 2026' → ISO
+  });
+
   it('maps all screenshots from appdetails', async () => {
     vi.stubGlobal('fetch', mockFetch([{ name: 'Game A', appid: 111 }]));
     const demos = await crawl({ recencyDays: 0, delayMs: 0 });

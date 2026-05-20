@@ -226,7 +226,9 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         shortDescription: details.short_description,
         headerImage: details.header_image,
         screenshots: (details.screenshots ?? []).map(s => s.path_thumbnail),
-        releaseDate: details.release_date?.date ?? '',
+        releaseDate: releaseDate
+          ? `${releaseDate.getFullYear()}-${String(releaseDate.getMonth() + 1).padStart(2, '0')}-${String(releaseDate.getDate()).padStart(2, '0')}`
+          : '',
         storeUrl: `https://store.steampowered.com/app/${appid}/`,
         tags,
         trailerThumbnail: firstMovie?.thumbnail,
