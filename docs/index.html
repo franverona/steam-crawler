@@ -335,8 +335,10 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dashjs@4/dist/dash.all.min.js"></script>
   <script>
     var hlsInstances = new WeakMap();
+    var dashInstances = new WeakMap();
     var allDemos = [];
     var latestSet = new Set();
     var currentFilter = 'latest';
@@ -360,7 +362,7 @@
     function demoCard(demo, isNew) {
       var screenshots = demo.screenshots.filter(Boolean);
       var allImages = [demo.headerImage].concat(screenshots).filter(Boolean);
-      var hasTrailer = !!(demo.trailerThumbnail && demo.trailerVideoUrl && demo.trailerVideoUrl.includes('.m3u8'));
+      var hasTrailer = !!(demo.trailerThumbnail && demo.trailerVideoUrl);
 
       var trailerThumb = hasTrailer
         ? '<div class="thumb trailer-thumb active" data-video="' + escapeHtml(demo.trailerVideoUrl) + '" title="Watch trailer">' +
@@ -375,7 +377,7 @@
       }).join('');
 
       var mainViewer = hasTrailer
-        ? '<video class="main-video" data-hls="' + escapeHtml(demo.trailerVideoUrl) + '" controls></video>'
+        ? '<video class="main-video" data-video="' + escapeHtml(demo.trailerVideoUrl) + '" controls></video>'
         : '<img class="main-img" src="' + escapeHtml(screenshots[0] || demo.headerImage) + '" alt="" onerror="this.style.display=\'none\'">';
 
       var releaseDateHtml = demo.releaseDate
@@ -418,14 +420,22 @@
       '</article>';
     }
 
-    function attachHls(video, src) {
-      if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-        var hls = new Hls();
-        hls.loadSource(src);
-        hls.attachMedia(video);
-        hlsInstances.set(video, hls);
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = src;
+    function attachVideo(video, src) {
+      if (src.includes('.m3u8')) {
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+          var hls = new Hls();
+          hls.loadSource(src);
+          hls.attachMedia(video);
+          hlsInstances.set(video, hls);
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = src;
+        }
+      } else if (src.includes('.mpd')) {
+        if (typeof dashjs !== 'undefined') {
+          var player = dashjs.MediaPlayer().create();
+          player.initialize(video, src, false);
+          dashInstances.set(video, player);
+        }
       }
     }
 
@@ -435,11 +445,13 @@
       video.pause();
       var hls = hlsInstances.get(video);
       if (hls) { hls.destroy(); hlsInstances.delete(video); }
+      var dash = dashInstances.get(video);
+      if (dash) { dash.destroy(); dashInstances.delete(video); }
     }
 
     function initVideos() {
-      document.querySelectorAll('.main-video[data-hls]').forEach(function(video) {
-        attachHls(video, video.dataset.hls);
+      document.querySelectorAll('.main-video[data-video]').forEach(function(video) {
+        attachVideo(video, video.dataset.video);
       });
 
       document.querySelectorAll('.thumb-strip').forEach(function(strip) {
@@ -460,7 +472,7 @@
               video.controls = true;
               viewer.innerHTML = '';
               viewer.appendChild(video);
-              attachHls(video, thumb.dataset.video);
+              attachVideo(video, thumb.dataset.video);
               video.play();
             }
           } else {
