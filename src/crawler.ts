@@ -219,10 +219,7 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         continue;
       }
       await sleep(delayMs);
-      const [details, tags] = await Promise.all([
-        fetchAppDetails(appid),
-        fetchStoreTags(appid),
-      ]);
+      const details = await fetchAppDetails(appid);
       if (!details) continue;
       if (details.release_date?.coming_soon) continue;
       if (details.type === 'dlc' || details.type === 'music') continue;
@@ -232,6 +229,8 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         hitCutoff = true;
         break;
       }
+
+      const tags = await fetchStoreTags(appid);
 
       // Demo apps rarely carry their own movies; fall back to the full game's page.
       let movies = details.movies ?? [];
