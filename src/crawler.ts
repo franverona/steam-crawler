@@ -112,6 +112,10 @@ export function parseReleaseDate(raw: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+export function toIsoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 async function fetchSearchPage(start: number): Promise<SearchResponse> {
   const params = new URLSearchParams({
     query: '',
@@ -241,9 +245,7 @@ export async function crawl(options: CrawlOptions = {}): Promise<Demo[]> {
         shortDescription: details.short_description,
         headerImage: details.header_image,
         screenshots: (details.screenshots ?? []).map(s => s.path_thumbnail),
-        releaseDate: releaseDate
-          ? `${releaseDate.getFullYear()}-${String(releaseDate.getMonth() + 1).padStart(2, '0')}-${String(releaseDate.getDate()).padStart(2, '0')}`
-          : '',
+        releaseDate: releaseDate ? toIsoDate(releaseDate) : '',
         storeUrl: `https://store.steampowered.com/app/${appid}/`,
         tags,
         trailerThumbnail: firstMovie?.thumbnail,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { crawl, parseReleaseDate, pruneOldDemos, fetchWithRetry, StoredDemo } from './crawler.ts';
+import { crawl, parseReleaseDate, pruneOldDemos, fetchWithRetry, toIsoDate, StoredDemo } from './crawler.ts';
 
 function makeSearchResponse(items: { name: string; appid: number }[]) {
   return {
@@ -145,6 +145,16 @@ describe('pruneOldDemos', () => {
   it('returns empty array when all demos are too old', () => {
     const demos = [makeStoredDemo(1, '2020-01-01'), makeStoredDemo(2, '2021-06-15')];
     expect(pruneOldDemos(demos, 180, now)).toHaveLength(0);
+  });
+});
+
+describe('toIsoDate', () => {
+  it('formats a local date as YYYY-MM-DD', () => {
+    expect(toIsoDate(new Date(2026, 4, 16))).toBe('2026-05-16');  // May = month 4
+  });
+
+  it('zero-pads single-digit months and days', () => {
+    expect(toIsoDate(new Date(2024, 0, 9))).toBe('2024-01-09');   // Jan 9
   });
 });
 
