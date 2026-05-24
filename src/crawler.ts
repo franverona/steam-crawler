@@ -80,8 +80,16 @@ export async function fetchWithRetry(
   backoffMs = 1000,
 ): Promise<Response> {
   let res!: Response;
+  let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    res = await fetch(url, init);
+    try {
+      res = await fetch(url, init);
+    } catch (err) {
+      lastError = err;
+      if (attempt === maxAttempts - 1) throw lastError;
+      await sleep(backoffMs * 2 ** attempt);
+      continue;
+    }
     if (res.ok) return res;
     const shouldRetry = res.status === 429 || res.status >= 500;
     if (!shouldRetry || attempt === maxAttempts - 1) return res;

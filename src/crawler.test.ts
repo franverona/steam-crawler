@@ -119,6 +119,25 @@ describe('fetchWithRetry', () => {
     expect(res.ok).toBe(false);
     expect(calls).toBe(1);
   });
+
+  it('retries on a thrown network error and returns on subsequent success', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls++;
+      if (calls === 1) throw new TypeError('Failed to fetch');
+      return { ok: true, status: 200 } as Response;
+    }));
+    const res = await fetchWithRetry('https://example.com', undefined, 3, 0);
+    expect(res.ok).toBe(true);
+    expect(calls).toBe(2);
+  });
+
+  it('re-throws the network error after exhausting all attempts', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => { calls++; throw new TypeError('Failed to fetch'); }));
+    await expect(fetchWithRetry('https://example.com', undefined, 3, 0)).rejects.toThrow('Failed to fetch');
+    expect(calls).toBe(3);
+  });
 });
 
 describe('pruneOldDemos', () => {
