@@ -529,7 +529,7 @@
       renderList('all');
     });
 
-    fetch('./demos.json')
+    fetch('./demos.json', { cache: 'no-cache' })
       .then(function(r) { return r.json(); })
       .then(function(db) {
         allDemos = db.demos || [];
