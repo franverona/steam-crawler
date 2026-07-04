@@ -5,8 +5,8 @@ Crawls the Steam Store for Mac demos released in the past week and maintains a g
 ## Usage
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 New demos are written to `docs/demos.json`. The report is served from `docs/index.html` via GitHub Pages.
@@ -20,7 +20,7 @@ New demos are written to `docs/demos.json`. The report is served from `docs/inde
 | `MAX_AGE_DAYS` | `180` | Prune demos older than N days from the database. `0` = keep all. |
 
 ```bash
-RECENCY_DAYS=30 MAX_DEMOS=200 npm run dev
+RECENCY_DAYS=30 MAX_DEMOS=200 pnpm dev
 ```
 
 ## Automation

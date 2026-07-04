@@ -4,6 +4,7 @@
   "description": "Weekly crawler for Steam Mac demos",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build": "tsc",
     "crawl": "node --import tsx/esm src/crawler.ts",
