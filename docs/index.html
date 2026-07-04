@@ -342,6 +342,7 @@
     var allDemos = [];
     var latestSet = new Set();
     var currentFilter = 'latest';
+    var lastCrawledAt = null;
 
     function escapeHtml(str) {
       return String(str)
@@ -492,11 +493,13 @@
       var subtitle = document.getElementById('subtitle');
       var newCount = latestSet.size;
       var total = allDemos.length;
-      if (filter === 'latest') {
-        subtitle.textContent = newCount + ' new demo' + (newCount !== 1 ? 's' : '') + ' — ' + total + ' total in database';
-      } else {
-        subtitle.textContent = total + ' demo' + (total !== 1 ? 's' : '') + ' in database';
+      var text = filter === 'latest'
+        ? newCount + ' new demo' + (newCount !== 1 ? 's' : '') + ' — ' + total + ' total in database'
+        : total + ' demo' + (total !== 1 ? 's' : '') + ' in database';
+      if (lastCrawledAt) {
+        text += ' · Last crawled ' + lastCrawledAt.toLocaleString();
       }
+      subtitle.textContent = text;
     }
 
     function renderList(filter) {
@@ -534,6 +537,7 @@
       .then(function(db) {
         allDemos = db.demos || [];
         latestSet = new Set(db.latestBatch || []);
+        lastCrawledAt = db.lastCrawledAt ? new Date(db.lastCrawledAt) : null;
 
         // Default to "All" when there are no new demos
         if (latestSet.size === 0) {

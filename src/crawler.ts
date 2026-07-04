@@ -26,6 +26,7 @@ export interface StoredDemo extends Demo {
 export interface DemoDatabase {
   latestBatch: number[];
   demos: StoredDemo[];
+  lastCrawledAt?: string;
 }
 
 export interface CrawlOptions {
@@ -296,6 +297,7 @@ async function main() {
   db = {
     latestBatch: newStoredDemos.map(d => d.appid),
     demos: [...newStoredDemos, ...db.demos],
+    lastCrawledAt: new Date().toISOString(),
   };
 
   const maxAgeDays = parseInt(process.env.MAX_AGE_DAYS ?? '180', 10);
