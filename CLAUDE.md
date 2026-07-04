@@ -5,10 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev       # Run crawler directly with tsx (no build step, fastest for local use)
-npm run crawl     # Run crawler via node --import tsx/esm (mirrors how CI runs it)
-npm test          # Run tests with vitest
-npx tsc --noEmit  # Type-check without emitting files
+pnpm dev              # Run crawler directly with tsx (no build step, fastest for local use)
+pnpm run crawl        # Run crawler via node --import tsx/esm (mirrors how CI runs it)
+pnpm test             # Run tests with vitest
+pnpm exec tsc --noEmit  # Type-check without emitting files
 ```
 
 Key environment variables (all optional):
@@ -19,7 +19,7 @@ Key environment variables (all optional):
 | `MAX_DEMOS` | `100` | Hard cap on enriched demos to avoid runaway API calls. |
 | `MAX_AGE_DAYS` | `180` | Prune demos from the database older than N days. Set to `0` to keep all. |
 
-Example: `RECENCY_DAYS=30 MAX_DEMOS=200 npm run dev`
+Example: `RECENCY_DAYS=30 MAX_DEMOS=200 pnpm dev`
 
 Output is written to `docs/demos.json`.
 
@@ -50,7 +50,7 @@ One source file, no runtime dependencies — only the Node 24+ built-in `fetch`.
 ## GitHub Actions
 
 `.github/workflows/crawl.yml` runs on `workflow_dispatch` only. It:
-1. Runs `npm test`
+1. Runs `pnpm test`
 2. Runs the crawler; new demos are merged into `docs/demos.json`
 3. Commits and pushes `docs/demos.json` to `main` (`[skip ci]` prevents re-triggering)
 4. Posts a Slack failure notification if any step fails
